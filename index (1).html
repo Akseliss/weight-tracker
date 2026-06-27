@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f0f0e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Weight" />
+  <title>Weight Tracker</title>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f0e;
+      --surface: #1a1a18;
+      --surface2: #242422;
+      --border: rgba(255,255,255,0.08);
+      --text: #f0efe8;
+      --muted: #6b6a66;
+      --accent: #2a78d6;
+      --accent-dim: rgba(42,120,214,0.15);
+      --green: #1baf7a;
+      --red: #e34948;
+      --radius: 12px;
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100dvh;
+      padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
+    }
+
+    .app { max-width: 480px; margin: 0 auto; padding: 1.5rem 1rem 6rem; }
+
+    h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.5px; margin-bottom: 0.25rem; }
+    .subtitle { font-size: 13px; color: var(--muted); margin-bottom: 1.75rem; }
+
+    /* Stats */
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1.5rem; }
+    .stat { background: var(--surface); border-radius: var(--radius); padding: 1rem; }
+    .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+    .stat-val { font-size: 26px; font-weight: 600; letter-spacing: -0.5px; }
+    .stat-val.green { color: var(--green); }
+    .stat-val.red { color: var(--red); }
+
+    /* Chart */
+    .chart-wrap { background: var(--surface); border-radius: var(--radius); padding: 1rem; margin-bottom: 1.5rem; position: relative; height: 180px; }
+
+    /* Log form */
+    .log-card { background: var(--surface); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1.5rem; }
+    .log-card h2 { font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    .log-row { display: flex; gap: 10px; align-items: stretch; }
+    input[type="date"], input[type="number"] {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 15px;
+      font-family: var(--font);
+      padding: 0.65rem 0.85rem;
+      outline: none;
+      -webkit-appearance: none;
+    }
+    input[type="date"] { flex: 1.2; min-width: 0; }
+    input[type="number"] { flex: 0.8; min-width: 0; }
+    input:focus { border-color: var(--accent); }
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+    .btn-log {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 500;
+      font-family: var(--font);
+      padding: 0.65rem 1.1rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.15s;
+    }
+    .btn-log:active { opacity: 0.8; }
+
+    /* Entries list */
+    .entries-label { font-size: 13px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.75rem; }
+    .entry-list { display: flex; flex-direction: column; gap: 6px; }
+    .entry-item {
+      background: var(--surface);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      padding: 0.85rem 1rem;
+      gap: 12px;
+    }
+    .entry-date { flex: 1; font-size: 14px; color: var(--muted); }
+    .entry-kg { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
+    .entry-delta { font-size: 13px; min-width: 48px; text-align: right; }
+    .entry-delta.pos { color: var(--red); }
+    .entry-delta.neg { color: var(--green); }
+    .entry-delta.zero { color: var(--muted); }
+    .btn-del {
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); font-size: 18px; line-height: 1;
+      padding: 4px; border-radius: 6px; transition: color 0.15s;
+    }
+    .btn-del:active { color: var(--red); }
+
+    .empty { font-size: 14px; color: var(--muted); text-align: center; padding: 2rem 0; }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5rem);
+      left: 50%; transform: translateX(-50%) translateY(8px);
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); font-size: 14px;
+      padding: 0.6rem 1.2rem; border-radius: 20px;
+      opacity: 0; transition: opacity 0.2s, transform 0.2s;
+      white-space: nowrap; pointer-events: none; z-index: 99;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+<div class="app">
+  <h1>Morning weight</h1>
+  <p class="subtitle">kg · logged daily</p>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">Latest</div>
+      <div class="stat-val" id="s-latest">—</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Total change</div>
+      <div class="stat-val" id="s-delta">—</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">7-day avg</div>
+      <div class="stat-val" id="s-avg">—</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">All-time low</div>
+      <div class="stat-val" id="s-low">—</div>
+    </div>
+  </div>
+
+  <div class="chart-wrap">
+    <canvas id="chart" role="img" aria-label="Weight trend chart"></canvas>
+  </div>
+
+  <div class="log-card">
+    <h2>Log weight</h2>
+    <div class="log-row">
+      <input type="date" id="inp-date" />
+      <input type="number" id="inp-kg" placeholder="kg" step="0.1" min="30" max="250" inputmode="decimal" />
+      <button class="btn-log" onclick="addEntry()">Save</button>
+    </div>
+  </div>
+
+  <div class="entries-label">History</div>
+  <div id="entry-list" class="entry-list"></div>
+  <p class="empty" id="empty-msg">No entries yet.</p>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const STORE = 'wt_v1';
+let entries = [];
+let chart = null;
+
+function load() {
+  try { entries = JSON.parse(localStorage.getItem(STORE)) || []; } catch { entries = []; }
+  const today = new Date().toISOString().slice(0, 10);
+  document.getElementById('inp-date').value = today;
+  render();
+}
+
+function save() {
+  localStorage.setItem(STORE, JSON.stringify(entries));
+}
+
+function addEntry() {
+  const d = document.getElementById('inp-date').value;
+  const v = parseFloat(document.getElementById('inp-kg').value);
+  if (!d || isNaN(v) || v < 30 || v > 250) { showToast('Enter a valid weight'); return; }
+  entries = entries.filter(e => e.d !== d);
+  entries.push({ d, v });
+  entries.sort((a, b) => a.d.localeCompare(b.d));
+  document.getElementById('inp-kg').value = '';
+  save();
+  render();
+  showToast('Logged ' + v.toFixed(1) + ' kg');
+}
+
+function deleteEntry(d) {
+  entries = entries.filter(e => e.d !== d);
+  save();
+  render();
+}
+
+function fmtDate(s) {
+  const [y, m, day] = s.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${parseInt(day)} ${months[parseInt(m)-1]}`;
+}
+
+function render() {
+  const n = entries.length;
+  const empty = document.getElementById('empty-msg');
+  const list = document.getElementById('entry-list');
+
+  if (n === 0) {
+    empty.style.display = '';
+    list.innerHTML = '';
+    updateStats(null);
+    updateChart([]);
+    return;
+  }
+  empty.style.display = 'none';
+
+  const latest = entries[n - 1].v;
+  const first = entries[0].v;
+  const delta = latest - first;
+  const last7 = entries.slice(-7);
+  const avg7 = last7.reduce((a, e) => a + e.v, 0) / last7.length;
+  const low = Math.min(...entries.map(e => e.v));
+
+  document.getElementById('s-latest').textContent = latest.toFixed(1) + ' kg';
+
+  const dEl = document.getElementById('s-delta');
+  dEl.textContent = (delta >= 0 ? '+' : '') + delta.toFixed(1) + ' kg';
+  dEl.className = 'stat-val ' + (delta > 0 ? 'red' : delta < 0 ? 'green' : '');
+
+  document.getElementById('s-avg').textContent = avg7.toFixed(1) + ' kg';
+  document.getElementById('s-low').textContent = low.toFixed(1) + ' kg';
+
+  const rev = [...entries].reverse();
+  list.innerHTML = '';
+  rev.forEach((e, i) => {
+    const prev = rev[i + 1];
+    const ch = prev ? e.v - prev.v : null;
+    const chStr = ch === null ? '' : (ch > 0 ? '+' : '') + ch.toFixed(1);
+    const chClass = ch === null ? 'zero' : ch > 0 ? 'pos' : ch < 0 ? 'neg' : 'zero';
+    const item = document.createElement('div');
+    item.className = 'entry-item';
+    item.innerHTML = `
+      <span class="entry-date">${fmtDate(e.d)}</span>
+      <span class="entry-kg">${e.v.toFixed(1)} kg</span>
+      <span class="entry-delta ${chClass}">${chStr}</span>
+      <button class="btn-del" onclick="deleteEntry('${e.d}')" aria-label="Delete">✕</button>`;
+    list.appendChild(item);
+  });
+
+  updateChart(entries);
+}
+
+function updateChart(data) {
+  const labels = data.map(e => fmtDate(e.d));
+  const vals = data.map(e => e.v);
+  if (chart) { chart.destroy(); chart = null; }
+  if (!data.length) return;
+
+  const minV = Math.min(...vals);
+  const maxV = Math.max(...vals);
+  const pad = Math.max((maxV - minV) * 0.4, 0.5);
+
+  chart = new Chart(document.getElementById('chart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: vals,
+        borderColor: '#2a78d6',
+        borderWidth: 2,
+        pointBackgroundColor: '#2a78d6',
+        pointBorderColor: '#0f0f0e',
+        pointBorderWidth: 2,
+        pointRadius: data.length <= 30 ? 4 : 0,
+        tension: 0.35,
+        fill: true,
+        backgroundColor: 'rgba(42,120,214,0.1)'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => c.parsed.y.toFixed(1) + ' kg' } }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: '#6b6a66', font: { size: 11 }, maxTicksLimit: 6, autoSkip: true }
+        },
+        y: {
+          min: parseFloat((minV - pad).toFixed(1)),
+          max: parseFloat((maxV + pad).toFixed(1)),
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: '#6b6a66', font: { size: 11 }, callback: v => v.toFixed(1) }
+        }
+      }
+    }
+  });
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+load();
+</script>
+</body>
+</html>
